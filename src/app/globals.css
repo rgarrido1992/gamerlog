@@ -1,0 +1,180 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --grain-opacity: 0.06;
+}
+
+html, body {
+  background: theme('colors.ink.950');
+  color: theme('colors.bone.50');
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle paper grain overlay — applied to body::before */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  mix-blend-mode: overlay;
+}
+
+/* CRT scanline accent for hero areas — used sparingly */
+.scanlines {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 181, 71, 0.03) 0px,
+    rgba(255, 181, 71, 0.03) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* ─── 3D Cover Effect ────────────────────────────────────────
+   Real perspective tilt, not a flat skew.
+   The card has preserve-3d and parallax layers inside.        */
+
+.cover-stage {
+  perspective: 1400px;
+  perspective-origin: 50% 30%;
+}
+
+.cover-card {
+  position: relative;
+  transform-style: preserve-3d;
+  transform:
+    rotateY(var(--ry, -14deg))
+    rotateX(var(--rx, 6deg));
+  transition: transform 600ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.cover-card:hover {
+  --ry: -6deg;
+  --rx: 2deg;
+}
+
+/* The actual cover image — slight lift on Z */
+.cover-face {
+  transform: translateZ(20px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 30px 40px -20px rgba(0, 0, 0, 0.8),
+    0 60px 80px -30px rgba(0, 0, 0, 0.6);
+}
+
+/* Spine — gives that "physical case" feel */
+.cover-spine {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 14px;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.7),
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(0, 0, 0, 0.5)
+  );
+  transform: rotateY(-90deg) translateZ(-7px) translateX(-7px);
+  transform-origin: left center;
+}
+
+/* Sheen — moving highlight on the cover */
+.cover-sheen {
+  position: absolute;
+  inset: 0;
+  transform: translateZ(21px);
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.12) 45%,
+    rgba(255, 255, 255, 0.02) 60%,
+    transparent 75%
+  );
+  mix-blend-mode: screen;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* Ground shadow under the card */
+.cover-shadow {
+  position: absolute;
+  bottom: -30px;
+  left: 10%;
+  right: 10%;
+  height: 30px;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.6), transparent 70%);
+  transform: translateZ(-50px) rotateX(90deg);
+  filter: blur(8px);
+}
+
+/* Status pill — flat, geometric, no rounded squircles */
+.status-pill {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border: 1px solid currentColor;
+}
+
+/* Filter chip — tactile, like a hardware switch */
+.chip {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 6px 14px;
+  border: 1px solid theme('colors.ink.600');
+  color: theme('colors.bone.200');
+  background: theme('colors.ink.900');
+  transition: all 150ms ease;
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: theme('colors.amber.glow');
+  color: theme('colors.amber.glow');
+}
+
+.chip[data-active="true"] {
+  background: theme('colors.amber.glow');
+  color: theme('colors.ink.950');
+  border-color: theme('colors.amber.glow');
+}
+
+/* Editorial heading rule */
+.rule {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: theme('colors.bone.200');
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+}
+
+.rule::before, .rule::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: theme('colors.ink.700');
+}
+
+/* Stagger reveal */
+@keyframes lift-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.lift-in {
+  animation: lift-in 700ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}

@@ -1,0 +1,126 @@
+// Gamelog database schema
+// Designed for single-user mode now, multi-user ready for later.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────────────────────────────────────
+// USERS — disabled in single-user mode but already modeled
+// ──────────────────────────────────────────────────────────────────
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+
+  entries   GameEntry[]
+}
+
+// ──────────────────────────────────────────────────────────────────
+// GAME CATALOG — cached from IGDB, editable per-field
+// ──────────────────────────────────────────────────────────────────
+model Game {
+  id           String   @id @default(cuid())
+  igdbId       Int?     @unique
+  title        String
+  slug         String   @unique
+  coverUrl     String?
+  releaseDate  DateTime?
+  summary      String?
+  // Manual overrides — if set, these win over IGDB on refresh
+  manualTitle       String?
+  manualCoverUrl    String?
+  manualReleaseDate DateTime?
+
+  genres       String[] @default([])
+  developers   String[] @default([])
+  publishers   String[] @default([])
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  entries      GameEntry[]
+
+  @@index([releaseDate])
+  @@index([title])
+}
+
+// ──────────────────────────────────────────────────────────────────
+// PLATFORMS
+// ──────────────────────────────────────────────────────────────────
+model Platform {
+  id      String  @id @default(cuid())
+  name    String  @unique           // "PlayStation 5"
+  slug    String  @unique           // "ps5"
+  family  String?                   // "PlayStation", "Xbox", "Nintendo", "PC"...
+
+  entries GameEntry[]
+}
+
+// ──────────────────────────────────────────────────────────────────
+// USER ↔ GAME — the actual log entry
+// ──────────────────────────────────────────────────────────────────
+enum GameStatus {
+  WISHLIST
+  PENDING       // owned/available, not started
+  STARTED
+  PLAYED        // played but no clear completion (incl. abandoned)
+  COMPLETED
+}
+
+enum CompletionType {
+  MAIN          // historia principal
+  HUNDRED       // 100% / platino / todo
+  ABANDONED     // dejado sin terminar
+}
+
+model GameEntry {
+  id            String          @id @default(cuid())
+  userId        String
+  gameId        String
+  platformId    String?
+
+  status        GameStatus
+  completion    CompletionType?
+
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  rating        Int?            // 0-100, granular
+  notes         String?
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game          Game            @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  platform      Platform?       @relation(fields: [platformId], references: [id])
+  sessions      PlaySession[]
+
+  @@unique([userId, gameId, platformId])
+  @@index([userId, status])
+  @@index([finishedAt])
+}
+
+// ──────────────────────────────────────────────────────────────────
+// PLAY SESSIONS — duration is nullable on purpose
+// "I played but don't remember how long" is a valid log
+// ──────────────────────────────────────────────────────────────────
+model PlaySession {
+  id              String     @id @default(cuid())
+  entryId         String
+  playedAt        DateTime
+  durationMinutes Int?       // nullable: "no me acuerdo"
+  notes           String?
+
+  createdAt       DateTime   @default(now())
+
+  entry           GameEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([entryId, playedAt])
+}
