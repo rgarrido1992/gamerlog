@@ -6,7 +6,6 @@ const display = Fraunces({
   subsets: ["latin"],
   variable: "--font-display",
   axes: ["opsz", "SOFT"],
-  weight: ["400", "600", "900"],
 });
 
 const body = Inter({
