@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { SessionLogger } from "./SessionLogger";
 
+export const dynamic = "force-dynamic";
+
 export default async function GamePage({ params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   const entry = await prisma.gameEntry.findFirst({

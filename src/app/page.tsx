@@ -4,6 +4,8 @@ import { GameCover } from "@/components/GameCover";
 import { FilterBar } from "@/components/FilterBar";
 import { GameStatus, Prisma } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
+
 interface PageProps {
   searchParams: {
     status?: string;
