@@ -43,73 +43,33 @@ export function SessionLogger({ entryId }: { entryId: string }) {
   }
 
   return (
-    <div className="border border-ink-700 p-5 space-y-4 bg-ink-900/50">
+    <div className="p-5 rounded-xl bg-bg-card border border-white/5 space-y-4">
       <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-end">
-        <label>
-          <span className="block font-mono text-xs uppercase tracking-widest2 text-bone-200/70 mb-2">
+        <label className="block">
+          <span className="block font-mono text-[10px] uppercase tracking-widest text-text-muted mb-1.5">
             Fecha
           </span>
-          <input
-            type="date"
-            value={playedAt}
-            onChange={(e) => setPlayedAt(e.target.value)}
-            className="w-full bg-ink-800 border border-ink-600 px-3 py-2 text-bone-50"
-          />
+          <input type="date" value={playedAt} onChange={(e) => setPlayedAt(e.target.value)} className="input" />
         </label>
-        <label>
-          <span className="block font-mono text-xs uppercase tracking-widest2 text-bone-200/70 mb-2">
-            H
-          </span>
-          <input
-            type="number"
-            min="0"
-            value={hours}
-            disabled={unknown}
-            onChange={(e) => setHours(e.target.value)}
-            className="w-16 bg-ink-800 border border-ink-600 px-3 py-2 text-bone-50 disabled:opacity-40"
-          />
+        <label className="block">
+          <span className="block font-mono text-[10px] uppercase tracking-widest text-text-muted mb-1.5">H</span>
+          <input type="number" min="0" value={hours} disabled={unknown} onChange={(e) => setHours(e.target.value)} className="input w-20" />
         </label>
-        <label>
-          <span className="block font-mono text-xs uppercase tracking-widest2 text-bone-200/70 mb-2">
-            M
-          </span>
-          <input
-            type="number"
-            min="0"
-            max="59"
-            value={minutes}
-            disabled={unknown}
-            onChange={(e) => setMinutes(e.target.value)}
-            className="w-16 bg-ink-800 border border-ink-600 px-3 py-2 text-bone-50 disabled:opacity-40"
-          />
+        <label className="block">
+          <span className="block font-mono text-[10px] uppercase tracking-widest text-text-muted mb-1.5">M</span>
+          <input type="number" min="0" max="59" value={minutes} disabled={unknown} onChange={(e) => setMinutes(e.target.value)} className="input w-20" />
         </label>
       </div>
 
       <label className="flex items-center gap-3 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={unknown}
-          onChange={(e) => setUnknown(e.target.checked)}
-          className="w-4 h-4 accent-amber-glow"
-        />
-        <span className="font-mono text-xs uppercase tracking-widest2 text-bone-200/80">
-          No recuerdo cuánto jugué
-        </span>
+        <input type="checkbox" checked={unknown} onChange={(e) => setUnknown(e.target.checked)} className="w-4 h-4 accent-accent" />
+        <span className="text-sm text-text-DEFAULT">No recuerdo cuánto jugué</span>
       </label>
 
-      <input
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        placeholder="Nota opcional…"
-        className="w-full bg-ink-800 border border-ink-600 px-3 py-2 text-bone-50"
-      />
+      <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Nota opcional…" className="input" />
 
-      <button
-        onClick={submit}
-        disabled={saving}
-        className="px-5 py-2 bg-amber-glow text-ink-950 font-mono uppercase tracking-widest text-xs hover:bg-amber-burn disabled:opacity-50"
-      >
-        {saving ? "…" : "+ Registrar sesión"}
+      <button onClick={submit} disabled={saving} className="btn btn-primary">
+        {saving ? "Guardando…" : "+ Registrar sesión"}
       </button>
     </div>
   );

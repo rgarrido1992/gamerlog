@@ -2,179 +2,249 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --grain-opacity: 0.06;
-}
-
 html, body {
-  background: theme('colors.ink.950');
-  color: theme('colors.bone.50');
+  background: theme('colors.bg.DEFAULT');
+  color: theme('colors.text.DEFAULT');
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
 }
 
-/* Subtle paper grain overlay — applied to body::before */
+/* Subtle gradient mesh in the background */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 100;
-  opacity: var(--grain-opacity);
-  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-  mix-blend-mode: overlay;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(94, 227, 255, 0.08), transparent 50%),
+    radial-gradient(ellipse at 80% 100%, rgba(168, 85, 247, 0.05), transparent 50%);
 }
 
-/* CRT scanline accent for hero areas — used sparingly */
-.scanlines {
-  background-image: repeating-linear-gradient(
-    0deg,
-    rgba(255, 181, 71, 0.03) 0px,
-    rgba(255, 181, 71, 0.03) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-}
-
-/* ─── 3D Cover Effect ────────────────────────────────────────
-   Real perspective tilt, not a flat skew.
-   The card has preserve-3d and parallax layers inside.        */
-
-.cover-stage {
-  perspective: 1400px;
-  perspective-origin: 50% 30%;
-}
-
-.cover-card {
+/* ─── Tiles (game cards on home) ─── */
+.tile {
   position: relative;
-  transform-style: preserve-3d;
-  transform:
-    rotateY(var(--ry, -14deg))
-    rotateX(var(--rx, 6deg));
-  transition: transform 600ms cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform;
-}
-
-.cover-card:hover {
-  --ry: -6deg;
-  --rx: 2deg;
-}
-
-/* The actual cover image — slight lift on Z */
-.cover-face {
-  transform: translateZ(20px);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.08) inset,
-    0 30px 40px -20px rgba(0, 0, 0, 0.8),
-    0 60px 80px -30px rgba(0, 0, 0, 0.6);
-}
-
-/* Spine — gives that "physical case" feel */
-.cover-spine {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 14px;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    rgba(0, 0, 0, 0.7),
-    rgba(255, 255, 255, 0.04) 50%,
-    rgba(0, 0, 0, 0.5)
-  );
-  transform: rotateY(-90deg) translateZ(-7px) translateX(-7px);
-  transform-origin: left center;
-}
-
-/* Sheen — moving highlight on the cover */
-.cover-sheen {
-  position: absolute;
-  inset: 0;
-  transform: translateZ(21px);
-  background: linear-gradient(
-    105deg,
-    transparent 30%,
-    rgba(255, 255, 255, 0.12) 45%,
-    rgba(255, 255, 255, 0.02) 60%,
-    transparent 75%
-  );
-  mix-blend-mode: screen;
-  pointer-events: none;
-  opacity: 0.7;
-}
-
-/* Ground shadow under the card */
-.cover-shadow {
-  position: absolute;
-  bottom: -30px;
-  left: 10%;
-  right: 10%;
-  height: 30px;
-  background: radial-gradient(ellipse at center, rgba(0,0,0,0.6), transparent 70%);
-  transform: translateZ(-50px) rotateX(90deg);
-  filter: blur(8px);
-}
-
-/* Status pill — flat, geometric, no rounded squircles */
-.status-pill {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  padding: 3px 8px;
-  border: 1px solid currentColor;
-}
-
-/* Filter chip — tactile, like a hardware switch */
-.chip {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  padding: 6px 14px;
-  border: 1px solid theme('colors.ink.600');
-  color: theme('colors.bone.200');
-  background: theme('colors.ink.900');
-  transition: all 150ms ease;
+  border-radius: 12px;
+  background: theme('colors.bg.card');
+  overflow: hidden;
+  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1),
+              box-shadow 300ms ease,
+              outline-color 200ms ease;
+  outline: 2px solid transparent;
   cursor: pointer;
 }
 
+.tile:hover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.8),
+              0 0 40px rgba(94, 227, 255, 0.2);
+  outline-color: theme('colors.accent.DEFAULT');
+  z-index: 1;
+}
+
+.tile-image {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  background-size: cover;
+  background-position: center;
+}
+
+.tile-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 50%, rgba(11, 15, 26, 0.95));
+  pointer-events: none;
+}
+
+/* ─── Platform badges ─── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  border-radius: 4px;
+  padding: 2px 6px;
+  min-width: 28px;
+  height: 20px;
+  text-transform: uppercase;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1) inset,
+              0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* ─── Status chip ─── */
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(11, 15, 26, 0.85);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.status-chip::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+.status-wishlist  { color: #94a3b8; }
+.status-pending   { color: theme('colors.warning'); }
+.status-started   { color: theme('colors.accent.DEFAULT'); }
+.status-played    { color: #c084fc; }
+.status-completed { color: theme('colors.success'); }
+
+/* ─── Filter chips ─── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: theme('colors.bg.elevated');
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: theme('colors.text.muted');
+  cursor: pointer;
+  transition: all 150ms ease;
+}
 .chip:hover {
-  border-color: theme('colors.amber.glow');
-  color: theme('colors.amber.glow');
+  background: theme('colors.bg.hover');
+  color: theme('colors.text.DEFAULT');
+  border-color: rgba(255, 255, 255, 0.2);
 }
-
 .chip[data-active="true"] {
-  background: theme('colors.amber.glow');
-  color: theme('colors.ink.950');
-  border-color: theme('colors.amber.glow');
+  background: theme('colors.accent.DEFAULT');
+  color: #000;
+  border-color: theme('colors.accent.DEFAULT');
+  box-shadow: 0 0 20px theme('colors.accent.glow');
 }
 
-/* Editorial heading rule */
-.rule {
+/* ─── Section divider ─── */
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: theme('colors.text.muted');
   display: flex;
   align-items: center;
-  gap: 1rem;
-  color: theme('colors.bone.200');
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
+  gap: 12px;
 }
-
-.rule::before, .rule::after {
+.section-label::after {
   content: "";
   flex: 1;
   height: 1px;
-  background: theme('colors.ink.700');
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.1), transparent);
 }
 
-/* Stagger reveal */
-@keyframes lift-in {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+/* ─── Form inputs ─── */
+.input {
+  width: 100%;
+  background: theme('colors.bg.elevated');
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: theme('colors.text.DEFAULT');
+  font-family: var(--font-body);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.input:focus {
+  border-color: theme('colors.accent.DEFAULT');
+  box-shadow: 0 0 0 3px theme('colors.accent.glow');
+}
+.input[type="date"] {
+  color-scheme: dark;
 }
 
-.lift-in {
-  animation: lift-in 700ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+/* ─── Buttons ─── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  border: 1px solid transparent;
 }
+.btn-primary {
+  background: theme('colors.accent.DEFAULT');
+  color: #000;
+}
+.btn-primary:hover {
+  background: theme('colors.accent.hover');
+  box-shadow: 0 0 30px theme('colors.accent.glow');
+}
+.btn-secondary {
+  background: theme('colors.bg.elevated');
+  color: theme('colors.text.DEFAULT');
+  border-color: rgba(255, 255, 255, 0.1);
+}
+.btn-secondary:hover {
+  background: theme('colors.bg.hover');
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.btn-danger {
+  background: rgba(248, 113, 113, 0.1);
+  color: theme('colors.danger');
+  border-color: rgba(248, 113, 113, 0.3);
+}
+.btn-danger:hover {
+  background: rgba(248, 113, 113, 0.2);
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ─── Score ring ─── */
+.score-ring {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  position: relative;
+}
+
+/* ─── Fade-in animation ─── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fade-up 500ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+
+/* ─── Horizontal scroll row (Netflix-style carousels) ─── */
+.scroll-row {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
+}
+.scroll-row::-webkit-scrollbar { height: 8px; }
+.scroll-row::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+.scroll-row::-webkit-scrollbar-track { background: transparent; }
+.scroll-row > * { flex: 0 0 auto; }

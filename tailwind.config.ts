@@ -5,32 +5,35 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: {
-          950: "#0a0908",
-          900: "#11100e",
-          800: "#1a1815",
-          700: "#26221d",
-          600: "#3a342c",
-          500: "#5a5246",
+        bg: {
+          DEFAULT: "#0b0f1a",
+          elevated: "#131826",
+          hover: "#1a2031",
+          card: "#161c2c",
         },
-        bone: {
-          50: "#f5f1e8",
-          100: "#ebe5d3",
-          200: "#d4ccb5",
+        text: {
+          DEFAULT: "#e7ecf5",
+          muted: "#8a93a8",
+          dim: "#5a6578",
         },
-        amber: {
-          glow: "#ffb547",
-          burn: "#ff7a1a",
-          deep: "#c75a00",
+        accent: {
+          DEFAULT: "#5ee3ff",   // PS5-ish cyan
+          hover: "#82e9ff",
+          glow: "rgba(94, 227, 255, 0.5)",
         },
+        success: "#4ade80",
+        warning: "#fbbf24",
+        danger: "#f87171",
       },
       fontFamily: {
-        display: ["var(--font-display)", "serif"],
-        body: ["var(--font-body)", "sans-serif"],
+        display: ["var(--font-display)", "system-ui", "sans-serif"],
+        body: ["var(--font-body)", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "monospace"],
       },
-      letterSpacing: {
-        widest2: "0.25em",
+      boxShadow: {
+        glow: "0 0 40px rgba(94, 227, 255, 0.15)",
+        "glow-strong": "0 0 60px rgba(94, 227, 255, 0.3)",
+        tile: "0 10px 30px -10px rgba(0, 0, 0, 0.7), 0 4px 6px -4px rgba(0, 0, 0, 0.5)",
       },
     },
   },

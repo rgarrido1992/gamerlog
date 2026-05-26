@@ -1,5 +1,4 @@
-// Gamelog database schema
-// Designed for single-user mode now, multi-user ready for later.
+// MemoryCard — database schema v2
 
 generator client {
   provider = "prisma-client-js"
@@ -10,74 +9,114 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ──────────────────────────────────────────────────────────────────
-// USERS — disabled in single-user mode but already modeled
-// ──────────────────────────────────────────────────────────────────
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
+  id        String      @id @default(cuid())
+  email     String      @unique
   name      String?
-  createdAt DateTime @default(now())
+  createdAt DateTime    @default(now())
 
   entries   GameEntry[]
+  lists     GameList[]
 }
 
 // ──────────────────────────────────────────────────────────────────
-// GAME CATALOG — cached from IGDB, editable per-field
+// GAME CATALOG
 // ──────────────────────────────────────────────────────────────────
 model Game {
-  id           String   @id @default(cuid())
-  igdbId       Int?     @unique
-  title        String
-  slug         String   @unique
-  coverUrl     String?
-  releaseDate  DateTime?
-  summary      String?
-  // Manual overrides — if set, these win over IGDB on refresh
+  id                String   @id @default(cuid())
+  igdbId            Int?     @unique
+  title             String
+  slug              String   @unique
+  summary           String?
+
+  // Media
+  coverUrl          String?
+  artworkUrl        String?       // wide landscape, for Netflix-style hero
+  logoUrl           String?       // transparent logo if available
+  screenshots       String[]      @default([])
+  videoYoutubeId    String?       // youtube video ID for trailer
+
+  // Metadata
+  releaseDate       DateTime?
+  developers        String[]      @default([])
+  publishers        String[]      @default([])
+  genres            String[]      @default([])
+  gameModes         String[]      @default([])   // singleplayer, multiplayer, co-op…
+
+  // Ratings (cached from external sources)
+  igdbRating        Float?                       // 0-100 from IGDB
+  openCriticScore   Int?                         // 0-100 from OpenCritic
+  openCriticTier    String?                      // mighty, strong, fair, weak
+  openCriticId      Int?                         // for re-fetching
+  openCriticUrl     String?                      // link to OC page
+
+  // Similar games (IGDB IDs)
+  similarIgdbIds    Int[]                        @default([])
+
+  // Manual overrides
   manualTitle       String?
   manualCoverUrl    String?
   manualReleaseDate DateTime?
 
-  genres       String[] @default([])
-  developers   String[] @default([])
-  publishers   String[] @default([])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  entries      GameEntry[]
+  entries           GameEntry[]
+  platforms         GamePlatform[]
+  listItems         ListItem[]
 
   @@index([releaseDate])
   @@index([title])
 }
 
 // ──────────────────────────────────────────────────────────────────
-// PLATFORMS
+// PLATFORM CATALOG
+// Each platform has visual badge info for rendering.
 // ──────────────────────────────────────────────────────────────────
 model Platform {
-  id      String  @id @default(cuid())
-  name    String  @unique           // "PlayStation 5"
-  slug    String  @unique           // "ps5"
-  family  String?                   // "PlayStation", "Xbox", "Nintendo", "PC"...
+  id        String  @id @default(cuid())
+  name      String  @unique
+  slug      String  @unique
+  family    String?                          // PlayStation, Xbox, Nintendo, PC, Mobile
 
-  entries GameEntry[]
+  // IGDB mapping for filtering availability
+  igdbIds   Int[]   @default([])             // some platforms have multiple IGDB IDs
+
+  // Badge styling
+  badgeText   String                         // "PS", "X", "S", "N", "PC"
+  badgeBg     String                         // hex color, e.g. #006FCD
+  badgeFg     String                         // hex color for text on badge
+
+  games     GamePlatform[]
+  entries   GameEntry[]
+}
+
+// Many-to-many: which platforms each game is available on
+model GamePlatform {
+  gameId      String
+  platformId  String
+
+  game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  platform    Platform @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@id([gameId, platformId])
 }
 
 // ──────────────────────────────────────────────────────────────────
-// USER ↔ GAME — the actual log entry
+// USER ↔ GAME LOG
 // ──────────────────────────────────────────────────────────────────
 enum GameStatus {
   WISHLIST
-  PENDING       // owned/available, not started
+  PENDING
   STARTED
-  PLAYED        // played but no clear completion (incl. abandoned)
+  PLAYED
   COMPLETED
 }
 
 enum CompletionType {
-  MAIN          // historia principal
-  HUNDRED       // 100% / platino / todo
-  ABANDONED     // dejado sin terminar
+  MAIN
+  HUNDRED
+  ABANDONED
 }
 
 model GameEntry {
@@ -91,7 +130,7 @@ model GameEntry {
 
   startedAt     DateTime?
   finishedAt    DateTime?
-  rating        Int?            // 0-100, granular
+  rating        Int?            // 0-100, user's personal score
   notes         String?
 
   createdAt     DateTime        @default(now())
@@ -104,18 +143,14 @@ model GameEntry {
 
   @@unique([userId, gameId, platformId])
   @@index([userId, status])
-  @@index([finishedAt])
+  @@index([gameId])
 }
 
-// ──────────────────────────────────────────────────────────────────
-// PLAY SESSIONS — duration is nullable on purpose
-// "I played but don't remember how long" is a valid log
-// ──────────────────────────────────────────────────────────────────
 model PlaySession {
   id              String     @id @default(cuid())
   entryId         String
   playedAt        DateTime
-  durationMinutes Int?       // nullable: "no me acuerdo"
+  durationMinutes Int?
   notes           String?
 
   createdAt       DateTime   @default(now())
@@ -123,4 +158,36 @@ model PlaySession {
   entry           GameEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
   @@index([entryId, playedAt])
+}
+
+// ──────────────────────────────────────────────────────────────────
+// USER LISTS
+// ──────────────────────────────────────────────────────────────────
+model GameList {
+  id          String     @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  coverGameId String?    // game whose cover represents the list
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       ListItem[]
+
+  @@index([userId])
+}
+
+model ListItem {
+  id        String   @id @default(cuid())
+  listId    String
+  gameId    String
+  position  Int      @default(0)
+  addedAt   DateTime @default(now())
+
+  list      GameList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, gameId])
+  @@index([listId, position])
 }

@@ -17,23 +17,32 @@ export async function POST(req: NextRequest) {
     const user = await getCurrentUser();
     const body = SessionSchema.parse(await req.json());
 
-    // Verify ownership
     const entry = await prisma.gameEntry.findFirst({
       where: { id: body.entryId, userId: user.id },
     });
-    if (!entry) {
-      return NextResponse.json({ error: "Entry not found" }, { status: 404 });
-    }
+    if (!entry) return NextResponse.json({ error: "Entry not found" }, { status: 404 });
 
-    const session = await prisma.playSession.create({
-      data: {
-        entryId: body.entryId,
-        playedAt: new Date(body.playedAt),
-        durationMinutes: body.durationMinutes ?? null,
-        notes: body.notes ?? null,
-      },
-    });
-
+    const [session] = await prisma.$transaction([
+      prisma.playSession.create({
+        data: {
+          entryId: body.entryId,
+          playedAt: new Date(body.playedAt),
+          durationMinutes: body.durationMinutes ?? null,
+          notes: body.notes ?? null,
+        },
+      }),
+      ...(entry.status === "WISHLIST" || entry.status === "PENDING"
+        ? [
+            prisma.gameEntry.update({
+              where: { id: entry.id },
+              data: {
+                status: "STARTED" as const,
+                startedAt: entry.startedAt ?? new Date(body.playedAt),
+              },
+            }),
+          ]
+        : []),
+    ]);
     return NextResponse.json({ session }, { status: 201 });
   } catch (err) {
     if (err instanceof z.ZodError) {

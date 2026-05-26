@@ -1,7 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { PlatformBadge } from "@/components/PlatformBadge";
+
+interface PlatformInfo {
+  slug: string;
+  name: string;
+  igdbIds: number[];
+  badgeText: string;
+  badgeBg: string;
+  badgeFg: string;
+}
 
 interface IgdbResult {
   igdbId: number;
@@ -10,9 +20,16 @@ interface IgdbResult {
   summary: string | null;
   releaseDate: string | null;
   coverUrl: string | null;
+  artworkUrl: string | null;
+  screenshots: string[];
+  videoYoutubeId: string | null;
+  igdbRating: number | null;
   genres: string[];
+  gameModes: string[];
   developers: string[];
   publishers: string[];
+  igdbPlatformIds: number[];
+  similarIgdbIds: number[];
 }
 
 const STATUSES = [
@@ -30,23 +47,34 @@ const COMPLETIONS = [
   { value: "ABANDONED", label: "Abandonado" },
 ];
 
-export function AddGameClient({ platforms }: { platforms: { slug: string; name: string }[] }) {
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export function AddGameClient({ platforms }: { platforms: PlatformInfo[] }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<IgdbResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [picked, setPicked] = useState<IgdbResult | null>(null);
-  const [manualMode, setManualMode] = useState(false);
 
   // Form state
-  const [title, setTitle] = useState("");
-  const [coverUrl, setCoverUrl] = useState("");
-  const [releaseDate, setReleaseDate] = useState("");
   const [platformSlug, setPlatformSlug] = useState("");
   const [status, setStatus] = useState("PENDING");
   const [completion, setCompletion] = useState("");
+  const [startedAt, setStartedAt] = useState(todayISO());
+  const [finishedAt, setFinishedAt] = useState(todayISO());
+  const [rating, setRating] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Filter platforms to only those available for the picked game
+  const availablePlatforms = useMemo(() => {
+    if (!picked || picked.igdbPlatformIds.length === 0) return [];
+    return platforms.filter((p) =>
+      p.igdbIds.some((id) => picked.igdbPlatformIds.includes(id))
+    );
+  }, [picked, platforms]);
 
   async function search(e: React.FormEvent) {
     e.preventDefault();
@@ -61,32 +89,36 @@ export function AddGameClient({ platforms }: { platforms: { slug: string; name: 
     }
   }
 
-  function pick(r: IgdbResult) {
-    setPicked(r);
-    setTitle(r.title);
-    setCoverUrl(r.coverUrl ?? "");
-    setReleaseDate(r.releaseDate ? r.releaseDate.slice(0, 10) : "");
-    setManualMode(false);
-  }
-
   async function submit() {
+    if (!picked) return;
     setSaving(true);
     try {
-      const body: any = {
-        title,
-        slug: picked?.slug ?? title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-        coverUrl: coverUrl || null,
-        releaseDate: releaseDate ? new Date(releaseDate).toISOString() : null,
-        summary: picked?.summary ?? null,
-        genres: picked?.genres ?? [],
-        developers: picked?.developers ?? [],
-        publishers: picked?.publishers ?? [],
+      const body = {
+        igdbId: picked.igdbId,
+        title: picked.title,
+        slug: picked.slug,
+        coverUrl: picked.coverUrl,
+        artworkUrl: picked.artworkUrl,
+        screenshots: picked.screenshots,
+        videoYoutubeId: picked.videoYoutubeId,
+        releaseDate: picked.releaseDate,
+        summary: picked.summary,
+        igdbRating: picked.igdbRating,
+        genres: picked.genres,
+        gameModes: picked.gameModes,
+        developers: picked.developers,
+        publishers: picked.publishers,
+        igdbPlatformIds: picked.igdbPlatformIds,
+        similarIgdbIds: picked.similarIgdbIds,
+
         platformSlug: platformSlug || null,
         status,
         completion: completion || null,
+        startedAt: startedAt ? new Date(startedAt).toISOString() : null,
+        finishedAt: status === "COMPLETED" && finishedAt ? new Date(finishedAt).toISOString() : null,
+        rating: rating ? parseInt(rating) : null,
         notes: notes || null,
       };
-      if (picked?.igdbId) body.igdbId = picked.igdbId;
 
       const res = await fetch("/api/games", {
         method: "POST",
@@ -105,64 +137,53 @@ export function AddGameClient({ platforms }: { platforms: { slug: string; name: 
   }
 
   return (
-    <main className="min-h-screen">
-      <header className="border-b border-ink-800 px-6 lg:px-12 py-10">
-        <div className="max-w-6xl mx-auto">
-          <a href="/" className="font-mono text-xs uppercase tracking-widest2 text-amber-glow">
-            ← Volver al archivo
-          </a>
-          <h1 className="font-display font-black text-5xl mt-4 text-bone-50">
-            Añadir <span className="italic text-amber-glow">juego</span>
-          </h1>
-        </div>
-      </header>
+    <main className="max-w-[1400px] mx-auto px-6 lg:px-10 py-10">
+      <div className="mb-10">
+        <a href="/" className="font-mono text-xs uppercase tracking-widest text-accent hover:text-accent-hover">
+          ← Volver
+        </a>
+        <h1 className="font-display font-bold text-4xl lg:text-5xl mt-3">Añadir juego</h1>
+      </div>
 
-      <div className="max-w-6xl mx-auto px-6 lg:px-12 py-12 grid lg:grid-cols-2 gap-12">
-        {/* ─── Search ──────────────────────────────────── */}
+      <div className="grid lg:grid-cols-[420px_1fr] gap-10">
+        {/* SEARCH PANEL */}
         <section>
-          <div className="rule mb-4"><span>1 · Buscar</span></div>
-          <form onSubmit={search} className="flex gap-2">
+          <div className="section-label mb-4"><span>1 · Buscar en IGDB</span></div>
+          <form onSubmit={search} className="flex gap-2 mb-5">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Hollow Knight, Persona 5…"
-              className="flex-1 bg-ink-900 border border-ink-700 px-4 py-3 text-bone-50 font-body focus:border-amber-glow outline-none"
+              className="input flex-1"
             />
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-6 py-3 bg-amber-glow text-ink-950 font-mono uppercase tracking-widest text-xs hover:bg-amber-burn disabled:opacity-50"
-            >
+            <button type="submit" disabled={loading} className="btn btn-primary">
               {loading ? "…" : "Buscar"}
             </button>
           </form>
 
-          <button
-            onClick={() => { setManualMode(true); setPicked(null); setTitle(""); setCoverUrl(""); setReleaseDate(""); }}
-            className="mt-4 font-mono text-xs uppercase tracking-widest text-bone-200/70 hover:text-amber-glow"
-          >
-            o añadirlo a mano →
-          </button>
-
-          <div className="mt-6 space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+          <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-2">
             {results.map((r) => (
               <button
                 key={r.igdbId}
-                onClick={() => pick(r)}
-                className={`w-full flex gap-4 p-3 border transition-colors text-left ${
+                onClick={() => setPicked(r)}
+                className={`w-full flex gap-3 p-3 rounded-lg border transition-all text-left ${
                   picked?.igdbId === r.igdbId
-                    ? "border-amber-glow bg-ink-800"
-                    : "border-ink-700 hover:border-ink-600"
+                    ? "border-accent bg-accent/5 shadow-glow"
+                    : "border-white/5 bg-bg-elevated hover:border-white/15"
                 }`}
               >
-                {r.coverUrl && (
+                {r.coverUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={r.coverUrl} alt="" className="w-12 h-16 object-cover" />
+                  <img src={r.coverUrl} alt="" className="w-14 h-20 object-cover rounded" />
+                ) : (
+                  <div className="w-14 h-20 rounded bg-bg-hover" />
                 )}
                 <div className="flex-1 min-w-0">
-                  <div className="font-display text-lg text-bone-50 truncate">{r.title}</div>
-                  <div className="font-mono text-xs text-bone-200/60">
-                    {r.releaseDate ? r.releaseDate.slice(0, 4) : "—"} ·{" "}
+                  <div className="font-semibold text-text-DEFAULT truncate">{r.title}</div>
+                  <div className="font-mono text-xs text-text-muted mt-1">
+                    {r.releaseDate ? r.releaseDate.slice(0, 4) : "—"}
+                  </div>
+                  <div className="text-xs text-text-muted truncate mt-0.5">
                     {r.developers.slice(0, 2).join(", ")}
                   </div>
                 </div>
@@ -171,106 +192,120 @@ export function AddGameClient({ platforms }: { platforms: { slug: string; name: 
           </div>
         </section>
 
-        {/* ─── Form ──────────────────────────────────────── */}
+        {/* FORM PANEL */}
         <section>
-          <div className="rule mb-4"><span>2 · Detalles</span></div>
-          {!picked && !manualMode ? (
-            <p className="text-bone-200/60 italic">
-              Selecciona un resultado o entra en modo manual.
-            </p>
+          <div className="section-label mb-4"><span>2 · Detalles de tu entrada</span></div>
+          {!picked ? (
+            <div className="border border-dashed border-white/10 rounded-2xl p-16 text-center text-text-muted">
+              Selecciona un juego de la búsqueda para continuar.
+            </div>
           ) : (
             <div className="space-y-5">
-              <Field label="Título">
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="input"
-                />
+              {/* Game preview */}
+              <div className="flex gap-4 p-4 rounded-xl bg-bg-elevated border border-white/5">
+                {picked.coverUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={picked.coverUrl} alt="" className="w-20 h-28 object-cover rounded" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-display font-bold text-lg">{picked.title}</h3>
+                  <p className="text-xs text-text-muted">
+                    {picked.releaseDate ? picked.releaseDate.slice(0, 4) : "—"} · {picked.developers.join(", ")}
+                  </p>
+                  {availablePlatforms.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {availablePlatforms.map((p) => (
+                        <PlatformBadge key={p.slug} badgeText={p.badgeText} badgeBg={p.badgeBg} badgeFg={p.badgeFg} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <Field label="¿En qué plataforma lo tienes / lo jugaste?">
+                {availablePlatforms.length === 0 ? (
+                  <p className="text-sm text-text-muted italic py-2">
+                    IGDB no tiene información de plataformas para este juego. Lo añadirás sin plataforma asignada.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {availablePlatforms.map((p) => (
+                      <button
+                        key={p.slug}
+                        type="button"
+                        onClick={() => setPlatformSlug(platformSlug === p.slug ? "" : p.slug)}
+                        className={`chip ${platformSlug === p.slug ? "" : ""}`}
+                        data-active={platformSlug === p.slug}
+                      >
+                        <PlatformBadge badgeText={p.badgeText} badgeBg={p.badgeBg} badgeFg={p.badgeFg} />
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </Field>
-              <Field label="Carátula (URL)">
-                <input
-                  value={coverUrl}
-                  onChange={(e) => setCoverUrl(e.target.value)}
-                  className="input"
-                  placeholder="https://…"
-                />
-              </Field>
-              <Field label="Fecha de lanzamiento">
-                <input
-                  type="date"
-                  value={releaseDate}
-                  onChange={(e) => setReleaseDate(e.target.value)}
-                  className="input"
-                />
-              </Field>
-              <Field label="Plataforma">
-                <select
-                  value={platformSlug}
-                  onChange={(e) => setPlatformSlug(e.target.value)}
-                  className="input"
-                >
-                  <option value="">— ninguna —</option>
-                  {platforms.map((p) => (
-                    <option key={p.slug} value={p.slug}>{p.name}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Estado">
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="input"
-                >
-                  {STATUSES.map((s) => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
-              </Field>
-              {(status === "PLAYED" || status === "COMPLETED") && (
-                <Field label="Tipo de finalización">
-                  <select
-                    value={completion}
-                    onChange={(e) => setCompletion(e.target.value)}
-                    className="input"
-                  >
-                    {COMPLETIONS.map((c) => (
-                      <option key={c.value} value={c.value}>{c.label}</option>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <Field label="Estado">
+                  <select value={status} onChange={(e) => setStatus(e.target.value)} className="input">
+                    {STATUSES.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
                     ))}
                   </select>
                 </Field>
+                {(status === "PLAYED" || status === "COMPLETED") && (
+                  <Field label="Tipo de finalización">
+                    <select value={completion} onChange={(e) => setCompletion(e.target.value)} className="input">
+                      {COMPLETIONS.map((c) => (
+                        <option key={c.value} value={c.value}>{c.label}</option>
+                      ))}
+                    </select>
+                  </Field>
+                )}
+              </div>
+
+              {(status === "STARTED" || status === "PLAYED" || status === "COMPLETED") && (
+                <Field label="Fecha de comienzo (opcional)">
+                  <DateField value={startedAt} onChange={setStartedAt} />
+                </Field>
               )}
+
+              {status === "COMPLETED" && (
+                <Field label="Fecha de finalización (opcional)">
+                  <DateField value={finishedAt} onChange={setFinishedAt} />
+                </Field>
+              )}
+
+              {(status === "PLAYED" || status === "COMPLETED") && (
+                <Field label="Tu puntuación (0-100, opcional)">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={rating}
+                    onChange={(e) => setRating(e.target.value)}
+                    className="input"
+                    placeholder="ej. 88"
+                  />
+                </Field>
+              )}
+
               <Field label="Notas">
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   className="input min-h-24"
+                  placeholder="Cualquier cosa que quieras recordar…"
                 />
               </Field>
-              <button
-                onClick={submit}
-                disabled={saving || !title}
-                className="w-full px-6 py-4 bg-amber-glow text-ink-950 font-mono uppercase tracking-widest text-sm hover:bg-amber-burn disabled:opacity-50"
-              >
+
+              <button onClick={submit} disabled={saving} className="btn btn-primary w-full py-4 text-base">
                 {saving ? "Guardando…" : "✓ Añadir al archivo"}
               </button>
             </div>
           )}
         </section>
       </div>
-
-      <style>{`
-        .input {
-          width: 100%;
-          background: theme('colors.ink.900');
-          border: 1px solid theme('colors.ink.700');
-          padding: 10px 14px;
-          color: theme('colors.bone.50');
-          font-family: var(--font-body);
-          outline: none;
-          transition: border-color 150ms;
-        }
-        .input:focus { border-color: theme('colors.amber.glow'); }
-      `}</style>
     </main>
   );
 }
@@ -278,10 +313,23 @@ export function AddGameClient({ platforms }: { platforms: { slug: string; name: 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="font-mono text-xs uppercase tracking-widest2 text-bone-200/70 block mb-2">
+      <span className="block font-mono text-[11px] uppercase tracking-widest text-text-muted mb-2">
         {label}
       </span>
       {children}
     </label>
+  );
+}
+
+function DateField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex gap-2">
+      <input type="date" value={value} onChange={(e) => onChange(e.target.value)} className="input" />
+      {value && (
+        <button type="button" onClick={() => onChange("")} className="btn btn-secondary px-3" title="Limpiar">
+          ✕
+        </button>
+      )}
+    </div>
   );
 }
